@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BYISHIMO TECH - Receipt Verification</title>
-
-<style>
+<title>BYISHIMO TECH - Receipt Verification</title><style>
 body {
     margin: 0;
     padding: 20px;
@@ -27,13 +24,15 @@ h1 {
     color: #00aaff;
 }
 
-input {
+textarea {
     width: 90%;
+    height: 100px;
     padding: 14px;
     margin: 15px 0;
     border-radius: 8px;
     border: none;
-    font-size: 16px;
+    font-size: 14px;
+    box-sizing: border-box;
 }
 
 button {
@@ -49,7 +48,8 @@ button {
 
 #result {
     margin-top: 20px;
-    line-height: 1.6;
+    font-size: 25px;
+    font-weight: bold;
 }
 
 .footer {
@@ -57,56 +57,84 @@ button {
     color: #aaa;
     font-size: 12px;
 }
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<h1>BYISHIMO TECH</h1>
-
-<h3>PAYMENT RECEIPT VERIFICATION</h3>
-
-<p>Enter your receipt transaction ID below.</p>
-
-<input
-    type="text"
-    id="transactionId"
-    placeholder="Enter Transaction ID">
-
-<button onclick="verifyReceipt()">
+</style></head><body><div class="container"><h1>BYISHIMO TECH</h1><h3>PAYMENT RECEIPT VERIFICATION</h3><p>Enter the complete data from your receipt QR code.</p><textarea
+    id="qrData"
+    placeholder="Paste complete QR code data here">
+</textarea><button onclick="verifyReceipt()">
 VERIFY RECEIPT
-</button>
+</button><div id="result"></div><div class="footer">
+BYISHIMO TECH ADMINISTRATION<br>
+Official Receipt Verification Portal
+</div></div><script>
 
-<div id="result">
-    Verification service is being configured.
-</div>
+const PUBLIC_KEY_BASE64 =
+"MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApp3I6Ya4gYTa29fDH8d0NYTyC7taOwpByjsP2VyrstjpuhPbXVzxxNXm8f9mmztvtWLNf+ymwAeAKOiw+ckX/pnfPKX+21hlghdVETyM/gEzPNem7YIVvtq28+v+JGziK3PWlVMD38sEt7FlCxS/ydh7AtuIJebhXb6Qn+UZQJo9HV2Pp7D8idd/mTFC7Wi7Yp+cKA00lPG6GGg580ICPM0OEaWWgvQE3r+39yJqqlgoyaOqq8pzPMpNHIb05RUIL8k3Fo+Lvwejc2HaCq8/+fH5B79y3DMTl2kKp9l5IqcqjDdpGtXMzmRw+NcGhpkn3jaMkd2xmDMsGmo7ZmJF4QIDAQAB";
 
-<div class="footer">
-    BYISHIMO TECH ADMINISTRATION<br>
-    Official Receipt Verification Portal
-</div>
+async function verifyReceipt() {
 
-</div>
-
-<script>
-function verifyReceipt() {
-
-    const id = document.getElementById("transactionId")
+    const qrData = document.getElementById("qrData")
         .value.trim();
 
     const result = document.getElementById("result");
 
-    if (id === "") {
-        result.innerHTML = "Please enter a transaction ID.";
-        return;
+    result.textContent = "";
+
+    try {
+
+        const parts = qrData.split("|");
+
+        if (
+            parts.length !== 3 ||
+            parts[0] !== "BT1" ||
+            !parts[1] ||
+            !parts[2]
+        ) {
+            result.textContent = "INVALID";
+            return;
+        }
+
+        const transactionId = parts[1];
+        const signatureBase64 = parts[2];
+
+        const publicKeyBytes = Uint8Array.from(
+            atob(PUBLIC_KEY_BASE64),
+            c => c.charCodeAt(0)
+        );
+
+        const signatureBytes = Uint8Array.from(
+            atob(signatureBase64),
+            c => c.charCodeAt(0)
+        );
+
+        const publicKey = await crypto.subtle.importKey(
+            "spki",
+            publicKeyBytes,
+            {
+                name: "RSASSA-PKCS1-v1_5",
+                hash: "SHA-256"
+            },
+            false,
+            ["verify"]
+        );
+
+        const messageBytes = new TextEncoder()
+            .encode(transactionId);
+
+        const valid = await crypto.subtle.verify(
+            "RSASSA-PKCS1-v1_5",
+            publicKey,
+            signatureBytes,
+            messageBytes
+        );
+
+        result.textContent = valid ? "VALID" : "INVALID";
+
+    } catch (error) {
+
+        result.textContent = "INVALID";
+
     }
-
-    result.innerHTML =
-        "Verification service is not connected yet. Please try again later.";
 }
-</script>
 
-</body>
+</script></body>
 </html>
